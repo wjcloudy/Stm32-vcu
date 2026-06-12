@@ -21,6 +21,7 @@
 
 #include "utils.h"
 
+#include "bmw_phev_bms.h"
 #include "bmw_sbox.h"
 #include "hwinit.h"
 #include "iomatrix.h"
@@ -438,6 +439,26 @@ float ProcessUdc(int motorSpeed) {
     float idc =
         ((float)VWBOX::Amperes) *
         0.1; // get current from sbox sensor and post to parameter database
+    Param::SetFloat(Param::idc, idc);
+  } else if (Param::GetInt(Param::ShuntType) == 5) // BMW PHEV SME
+  {
+    // BmwPhevBMS::Voltage is pack voltage in dV (0.1V), Amperes in deciAmps (0.1A)
+    if (Param::GetInt(Param::opmode) != MOD_OFF) {
+      float udc2 = ((float)BmwPhevBMS::Voltage) / 10.0f; // dV → V (pre-contactor)
+      Param::SetFloat(Param::udc2, udc2);
+      // udc (post-contactor V) must NOT be reported as valid until the SME's
+      // internal contactors are confirmed closed.  Before that, report 0V so
+      // the VCU correctly stays in precharge mode waiting for the contactors.
+      float udc = BmwPhevBMS::AreContactorsClosed() ? udc2 : 0.0f;
+      Param::SetFloat(Param::udc, udc);
+      if (udc2 > Param::GetFloat(Param::udcmin))
+        Param::SetFloat(Param::udcsw, udc2 - 20); // Set UDCsw 20V below battery V
+    } else {
+      Param::SetFloat(Param::udc, 0);
+      Param::SetFloat(Param::udc2, 0);
+    }
+    Param::SetFloat(Param::udc3, 0);
+    float idc = ((float)BmwPhevBMS::Amperes) / 10.0f; // deciAmps → A
     Param::SetFloat(Param::idc, idc);
   }
 

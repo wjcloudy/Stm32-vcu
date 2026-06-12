@@ -19,7 +19,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#define VER 2.40A
+#define VER 2.41A
 
 /* Entries must be ordered as follows:
    1. Saveable parameters (id != 0)
@@ -36,8 +36,8 @@
   PARAM_ENTRY(CAT_SETUP, Transmission, TRNMODES, 0, 1, 0, 78)                  \
   PARAM_ENTRY(CAT_SETUP, interface, CHGINT, 0, 4, 0, 39)                       \
   PARAM_ENTRY(CAT_SETUP, chargemodes, CHGMODS, 0, 6, 0, 37)                    \
-  PARAM_ENTRY(CAT_SETUP, BMS_Mode, BMSMODES, 0, 5, 0, 90)                      \
-  PARAM_ENTRY(CAT_SETUP, ShuntType, SHNTYPE, 0, 4, 0, 88)                      \
+  PARAM_ENTRY(CAT_SETUP, BMS_Mode, BMSMODES, 0, 6, 0, 90)                      \
+  PARAM_ENTRY(CAT_SETUP, ShuntType, SHNTYPE, 0, 5, 0, 88)                      \
   PARAM_ENTRY(CAT_SETUP, InverterCan, CAN_DEV, 0, 1, 0, 70)                    \
   PARAM_ENTRY(CAT_SETUP, VehicleCan, CAN_DEV, 0, 1, 1, 71)                     \
   PARAM_ENTRY(CAT_SETUP, ShuntCan, CAN_DEV, 0, 1, 0, 72)                       \
@@ -110,6 +110,7 @@
   PARAM_ENTRY(CAT_BMS, BMS_VmaxLimit, "V", 0, 10, 4.2, 93)                     \
   PARAM_ENTRY(CAT_BMS, BMS_TminLimit, "°C", -100, 100, 5, 94)                  \
   PARAM_ENTRY(CAT_BMS, BMS_TmaxLimit, "°C", -100, 100, 50, 95)                 \
+  PARAM_ENTRY(CAT_BMS, BMS_BalancingOn, ONOFF, 0, 1, 0, 2126)                 \
   PARAM_ENTRY(CAT_HEATER, Heater, HTTYPE, 0, 6, 0, 57)                         \
   PARAM_ENTRY(CAT_HEATER, Control, HTCTRL, 0, 2, 0, 58)                        \
   PARAM_ENTRY(CAT_HEATER, HeatPwr, "W", 0, 6500, 0, 59)                        \
@@ -189,6 +190,10 @@
   VALUE_ENTRY(BMS_MaxCharge, "W", 2101)                                        \
   VALUE_ENTRY(BMS_Isolation, "Ohm", 2104)                                      \
   VALUE_ENTRY(BMS_IsoMeas, "mV", 2099)                                         \
+  VALUE_ENTRY(BMS_IsolationExt, "kOhm", 2124)                               \
+  VALUE_ENTRY(BMS_IsolationInt, "kOhm", 2125)                               \
+  VALUE_ENTRY(BMS_Balancing, BALSTATES, 2127)                                 \
+  VALUE_ENTRY(BMS_CellDelta, "mV", 2109)                                       \
   VALUE_ENTRY(speed, "rpm", 2016)                                              \
   VALUE_ENTRY(Veh_Speed, "kph", 2017)                                          \
   VALUE_ENTRY(torque, "dig", 2018)                                             \
@@ -269,7 +274,7 @@
   VALUE_ENTRY(DMA_ConsecFail, "", 2122)                                        \
   VALUE_ENTRY(HTM_State, "", 2123)
 
-// Next value Id: 2124
+// Next value Id: 2128
 
 // Dead params
 /*
@@ -296,7 +301,7 @@
   "17=GS450pump, 18=PwmTempGauge, 19=PwmSocGauge"
 #define APINFUNCS "0=None, 1=ProxPilot, 2=BrakeVacSensor, 3=HeaterPot"
 #define SHIFTERS "0=None, 1=BMW_F30, 2=JLR_G1, 3=JLR_G2, 4=BMW_E65"
-#define SHNTYPE "0=None, 1=ISA, 2=SBOX, 3=VAG. 4=ISA_udcsw"
+#define SHNTYPE "0=None, 1=ISA, 2=SBOX, 3=VAG, 4=ISA_udcsw, 5=BMW_PHEV_SME"
 #define DMODES "0=CLOSED, 1=OPEN, 2=ERROR, 3=INVALID"
 #define POTMODES "0=SingleChannel, 1=DualChannel"
 #define BTNSWITCH "0=Button, 1=Switch, 2=CAN"
@@ -312,7 +317,8 @@
   "8=BMW_E31"
 #define BMSMODES                                                               \
   "0=Off, 1=SimpBMS, 2=TiDaisychainSingle, 3=TiDaisychainDual, 4=LeafBms, "    \
-  "5=RenaultKangoo33"
+  "5=RenaultKangoo33, 6=BMW_PHEV"
+#define BALSTATES "0=InactiveNotNeeded, 1=Active, 2=NotResting, 3=Inactive, 4=Unknown"
 #define OPMODES "0=Off, 1=Run, 2=Precharge, 3=PchFail, 4=Charge, 5=Preheat"
 #define DOW "0=Sun, 1=Mon, 2=Tue, 3=Wed, 4=Thu, 5=Fri, 6=Sat"
 #define CHGTYPS "0=Off, 1=AC, 2=DCFC"
@@ -447,7 +453,8 @@ enum BMSModes {
   BMSModeDaisychainSingleBMS = 2,
   BMSModeDaisychainDualBMS = 3,
   BMSModeLeafBMS = 4,
-  BMSRenaultKangoo33BMS = 5
+  BMSRenaultKangoo33BMS = 5,
+  BMW_PHEV_BMS = 6
 };
 
 enum DCDCModes {

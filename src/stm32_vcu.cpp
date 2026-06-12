@@ -24,6 +24,14 @@
 #include "BMW_E31.h"
 #include "BMW_E39.h"
 #include "BMW_E65.h"
+/*
+ * BMW PHEV SME integration (BmwPhevBMS):
+ *   BMS_Mode=6  →  cell Vmin/Vmax, Tmin/Tmax, SOC, isolation, power limits
+ *   ShuntType=5  →  pack voltage/current, precharge setpoint, contactor control
+ * Both params must point to the same CAN bus (BMSCan = ShuntCan).
+ * See include/bmw_phev_bms.h for the full protocol documentation.
+ */
+#include "bmw_phev_bms.h"   // BMW PHEV Gen3/4 SME — BMS + contactor control
 #include "CANSPI.h"
 #include "CPC.h"
 #include "Can_OBD2.h"
@@ -196,6 +204,7 @@ static SimpBMS BMSsimp;
 static LeafBMS BMSleaf;
 static DaisychainBMS BMSdaisychain;
 static KangooBMS BMSRenaultKangoo33;
+static BmwPhevBMS BMSbmwphev;     // BMW PHEV SME — used when BMS_Mode=6 and ShuntType=5
 static DCDC DCDCnone;
 static TeslaDCDC DCDCTesla;
 static ElconDCDC ElconDC;
@@ -883,6 +892,10 @@ static void Ms10Task(void) {
     VWBOX::ControlContactors(
         opmode,
         canInterface[Param::GetInt(Param::ShuntCan)]); // VW contactor box
+  if (Param::GetInt(Param::ShuntType) == 5)
+    BmwPhevBMS::ControlContactors(
+        opmode,
+        canInterface[Param::GetInt(Param::ShuntCan)]); // BMW PHEV SME contactor control
 }
 
 static void Ms1Task(void) {
@@ -1069,6 +1082,9 @@ static void UpdateBMS() {
   case BMSModes::BMSRenaultKangoo33BMS:
     selectedBMS = &BMSRenaultKangoo33;
     break;
+  case BMSModes::BMW_PHEV_BMS:
+    selectedBMS = &BMSbmwphev;
+    break;
   default:
     // Default to no BMS
     selectedBMS = &BMSnone;
@@ -1167,6 +1183,8 @@ static void SetCanFilters() {
     SBOX::RegisterCanMessages(shunt_can); // select bmw sbox
   if (Param::GetInt(Param::ShuntType) == 3)
     VWBOX::RegisterCanMessages(shunt_can); // select vw sbox
+  if (Param::GetInt(Param::ShuntType) == 5)
+    BmwPhevBMS::RegisterCanMessages(shunt_can); // BMW PHEV SME
 
   canInterface[1]->RegisterUserMessage(0x601); // CanSDO
   canInterface[0]->RegisterUserMessage(0x601); // CanSDO
@@ -1306,6 +1324,11 @@ static bool CanCallback(
       SBOX::DecodeCAN(id, data);
     if (Param::GetInt(Param::ShuntType) == 3)
       VWBOX::DecodeCAN(id, data);
+    // BMW PHEV SME shunt decode — skipped when the PHEV is also the selected
+    // BMS: the polymorphic selectedBMS->DecodeCAN below reaches the same
+    // instance, and dispatching twice would corrupt ISO-TP reassembly.
+    if (Param::GetInt(Param::ShuntType) == 5 && selectedBMS != &BMSbmwphev)
+      BmwPhevBMS::DecodeCAN(id, data);
     selectedInverter->DecodeCAN(id, data);
     selectedVehicle->DecodeCAN(id, data);
     selectedCharger->DecodeCAN(id, data);

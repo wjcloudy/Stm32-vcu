@@ -1,0 +1,52 @@
+VERSION ""
+
+NS_ : 
+    NS_DESC_
+    CM_
+    BA_DEF_
+    BA_
+    VAL_
+    CAT_DEF_
+    CAT_
+    FILTER
+    BA_DEF_DEF_
+    EV_DATA_
+    ENVVAR_DATA_
+    SGTYPE_
+    SGTYPE_VAL_
+    BA_DEF_SGTYPE_
+    BA_SGTYPE_
+    SIG_TYPE_REF_
+    VAL_TABLE_
+    SIG_GROUP_
+    SIG_VALTYPE_
+    SIGTYPE_VALTYPE_
+    BO_TX_BU_
+    BA_DEF_REL_
+    BA_REL_
+    BA_DEF_DEF_REL_
+    BU_SG_REL_
+    BU_EV_REL_
+    BU_BO_REL_
+    SG_MUL_VAL_
+
+BS_:
+BU_: VCU SME
+
+BO_ 2016 ZV_Diag: 8 VCU
+ SG_ Diag_PollReason      : 0|4@0+  (1,0)   [0|15]     "" SME
+ SG_ Diag_TickCounter     : 4|4@0+  (1,0)   [0|9]      "" SME
+ SG_ Diag_AllowClose      : 8|1@0+  (1,0)   [0|1]      "" SME
+ SG_ Diag_BattAwake       : 9|1@0+  (1,0)   [0|1]      "" SME
+ SG_ Diag_53AState        : 10|2@0+ (1,0)   [0|3]      "" SME
+ SG_ Diag_SmeDemandsOpen  : 12|1@0+ (1,0)   [0|1]      "" SME
+ SG_ Diag_ShutdownPending : 13|1@0+ (1,0)   [0|1]      "" SME
+ SG_ Diag_CloseReq        : 14|1@0+ (1,0)   [0|1]      "" SME
+ SG_ Diag_ContactorsClosed: 15|1@0+ (1,0)   [0|1]      "" SME
+ SG_ Diag_PackVoltage_dV  : 16|16@0+ (0.1,0) [0|6553.5] "V" SME
+ SG_ Diag_Current_dA      : 32|16@0- (0.1,0) [-3276.8|3276.7] "A" SME
+ SG_ Diag_DisplaySocRaw   : 48|8@0+  (0.5,0) [0|127.5]  "%" SME
+ SG_ Diag_MaxTemperature  : 56|8@0-  (1,0)   [-128|127] "degC" SME
+
+VAL_ 2016 Diag_PollReason 0 "free" 1 "udsOneShotPending" 2 "udsCtxInProgress" 3 "noBmsCan" 4 "oddTick" 11 "preClose3left" 12 "preClose2left" 13 "preClose1left" ;
+VAL_ 2016 Diag_53AState 0 "IDLE_A" 1 "CLOSE_REQ_B" 2 "ESCALATED_C" 3 "STEADY_D" ;
