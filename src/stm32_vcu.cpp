@@ -861,6 +861,19 @@ static void Ms10Task(void) {
     break;
   }
 
+  // Saving to flash runs with all interrupts disabled for the duration of
+  // two page erases (~100-300ms), which stops the contactor keep-alive
+  // frames (e.g. BMW PHEV SME 0x10B) and makes external BMS units drop
+  // their contactors under load. Only allow saving when fully off, after
+  // the shutdown delay has elapsed and the HV contactors are open.
+  if (opmode == MOD_OFF && rlyDly == 0) {
+    TerminalCommands::EnableSaving();
+    SdoCommands::EnableSaving();
+  } else {
+    TerminalCommands::DisableSaving();
+    SdoCommands::DisableSaving();
+  }
+
   ControlCabHeater(opmode);
   if (Param::GetInt(Param::ShuntType) == 2)
     SBOX::ControlContactors(
