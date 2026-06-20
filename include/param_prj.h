@@ -110,11 +110,11 @@
   PARAM_ENTRY(CAT_BMS, BMS_VmaxLimit, "V", 0, 10, 4.2, 93)                     \
   PARAM_ENTRY(CAT_BMS, BMS_TminLimit, "°C", -100, 100, 5, 94)                  \
   PARAM_ENTRY(CAT_BMS, BMS_TmaxLimit, "°C", -100, 100, 50, 95)                 \
-  PARAM_ENTRY(CAT_BMS, BMS_BalancingOn, ONOFF, 0, 1, 0, 2126)                 \
-  PARAM_ENTRY(CAT_BMS, BMS_IsoTest, ONOFF, 0, 1, 0, 2132)                     \
-  PARAM_ENTRY(CAT_BMS, BMS_DTCRead, ONOFF, 0, 1, 0, 2146)                     \
-  PARAM_ENTRY(CAT_BMS, BMS_DTCClear, ONOFF, 0, 1, 0, 2147)                    \
-  PARAM_ENTRY(CAT_BMS, BMS_Reset, ONOFF, 0, 1, 0, 2158)                       \
+  PARAM_ENTRY(CAT_BMS, BMS_BalancingOn, ONOFF, 0, 1, 0, 2126)                  \
+  PARAM_ENTRY(CAT_BMS, BMS_IsoTest, ONOFF, 0, 1, 0, 2132)                      \
+  PARAM_ENTRY(CAT_BMS, BMS_DTCRead, ONOFF, 0, 1, 0, 2146)                      \
+  PARAM_ENTRY(CAT_BMS, BMS_DTCClear, ONOFF, 0, 1, 0, 2147)                     \
+  PARAM_ENTRY(CAT_BMS, BMS_Reset, ONOFF, 0, 1, 0, 2158)                        \
   PARAM_ENTRY(CAT_HEATER, Heater, HTTYPE, 0, 6, 0, 57)                         \
   PARAM_ENTRY(CAT_HEATER, Control, HTCTRL, 0, 2, 0, 58)                        \
   PARAM_ENTRY(CAT_HEATER, HeatPwr, "W", 0, 6500, 0, 59)                        \
@@ -194,37 +194,37 @@
   VALUE_ENTRY(BMS_MaxCharge, "W", 2101)                                        \
   VALUE_ENTRY(BMS_Isolation, "Ohm", 2104)                                      \
   VALUE_ENTRY(BMS_IsoMeas, "mV", 2099)                                         \
-  VALUE_ENTRY(BMS_IsolationExt, "kOhm", 2124)                               \
-  VALUE_ENTRY(BMS_IsolationInt, "kOhm", 2125)                               \
-  VALUE_ENTRY(BMS_IsolationTrg, "kOhm", 2128)                               \
-  VALUE_ENTRY(BMS_IsoPlausExt, ISOPLAUS, 2129)                              \
-  VALUE_ENTRY(BMS_IsoPlausInt, ISOPLAUS, 2130)                              \
-  VALUE_ENTRY(BMS_IsoPlausTrg, ISOPLAUS, 2131)                              \
-  VALUE_ENTRY(BMS_IsoTestStat, ISOTSTAT, 2133)                              \
-  VALUE_ENTRY(BMS_IsoTestFault, ISOTFAULT, 2157)                            \
-  VALUE_ENTRY(BMS_IsolationRaw, "kOhm", 2134)                               \
-  VALUE_ENTRY(BMS_IsoQuality, "", 2135)                                     \
-  VALUE_ENTRY(BMS_IsoErrExt, QUALFLAG, 2136)                                \
-  VALUE_ENTRY(BMS_IsoErrInt, QUALFLAG, 2137)                                \
-  VALUE_ENTRY(BMS_IsoWarn, QUALFLAG, 2138)                                  \
-  VALUE_ENTRY(BMS_SOH, "%", 2139)                                           \
-  VALUE_ENTRY(BMS_DTCCount, "", 2140)                                       \
-  VALUE_ENTRY(BMS_DTC1, "", 2141)                                           \
-  VALUE_ENTRY(BMS_DTC2, "", 2142)                                           \
-  VALUE_ENTRY(BMS_DTC3, "", 2143)                                           \
-  VALUE_ENTRY(BMS_DTC4, "", 2144)                                           \
-  VALUE_ENTRY(BMS_DTC5, "", 2145)                                           \
-  VALUE_ENTRY(BMS_Interlock, QUALFLAG, 2148)                                \
-  VALUE_ENTRY(BMS_PrechgState, PCHGSTATE, 2149)                             \
-  VALUE_ENTRY(BMS_Contactors, DCSWSTATE, 2150)                              \
-  VALUE_ENTRY(BMS_EmgMode, QUALFLAG, 2151)                                  \
-  VALUE_ENTRY(BMS_SvcReq, QUALFLAG, 2152)                                   \
-  VALUE_ENTRY(BMS_WeldCheck, WELDSTATE, 2153)                               \
-  VALUE_ENTRY(BMS_ColdValve, "", 2154)                                      \
-  VALUE_ENTRY(BMS_ChgVLim, "V", 2155)                                       \
-  VALUE_ENTRY(BMS_DisVLim, "V", 2156)                                       \
-  VALUE_ENTRY(BMS_Current, "A", 2159)                                       \
-  VALUE_ENTRY(BMS_Balancing, BALSTATES, 2127)                                 \
+  VALUE_ENTRY(BMS_IsolationExt, "kOhm", 2124)                                  \
+  VALUE_ENTRY(BMS_IsolationInt, "kOhm", 2125)                                  \
+  VALUE_ENTRY(BMS_IsolationTrg, "kOhm", 2128)                                  \
+  VALUE_ENTRY(BMS_IsoPlausExt, ISOPLAUS, 2129)                                 \
+  VALUE_ENTRY(BMS_IsoPlausInt, ISOPLAUS, 2130)                                 \
+  VALUE_ENTRY(BMS_IsoPlausTrg, ISOPLAUS, 2131)                                 \
+  VALUE_ENTRY(BMS_IsoTestStat, ISOTSTAT, 2133)                                 \
+  VALUE_ENTRY(BMS_IsoTestFault, ISOTFAULT, 2157)                               \
+  VALUE_ENTRY(BMS_IsolationRaw, "kOhm", 2134)                                  \
+  VALUE_ENTRY(BMS_IsoQuality, "", 2135)                                        \
+  VALUE_ENTRY(BMS_IsoErrExt, QUALFLAG, 2136)                                   \
+  VALUE_ENTRY(BMS_IsoErrInt, QUALFLAG, 2137)                                   \
+  VALUE_ENTRY(BMS_IsoWarn, QUALFLAG, 2138)                                     \
+  VALUE_ENTRY(BMS_SOH, "%", 2139)                                              \
+  VALUE_ENTRY(BMS_DTCCount, "", 2140)                                          \
+  VALUE_ENTRY(BMS_DTC1, "", 2141)                                              \
+  VALUE_ENTRY(BMS_DTC2, "", 2142)                                              \
+  VALUE_ENTRY(BMS_DTC3, "", 2143)                                              \
+  VALUE_ENTRY(BMS_DTC4, "", 2144)                                              \
+  VALUE_ENTRY(BMS_DTC5, "", 2145)                                              \
+  VALUE_ENTRY(BMS_Interlock, QUALFLAG, 2148)                                   \
+  VALUE_ENTRY(BMS_PrechgState, PCHGSTATE, 2149)                                \
+  VALUE_ENTRY(BMS_Contactors, DCSWSTATE, 2150)                                 \
+  VALUE_ENTRY(BMS_EmgMode, QUALFLAG, 2151)                                     \
+  VALUE_ENTRY(BMS_SvcReq, QUALFLAG, 2152)                                      \
+  VALUE_ENTRY(BMS_WeldCheck, WELDSTATE, 2153)                                  \
+  VALUE_ENTRY(BMS_ColdValve, "", 2154)                                         \
+  VALUE_ENTRY(BMS_ChgVLim, "V", 2155)                                          \
+  VALUE_ENTRY(BMS_DisVLim, "V", 2156)                                          \
+  VALUE_ENTRY(BMS_Current, "A", 2159)                                          \
+  VALUE_ENTRY(BMS_Balancing, BALSTATES, 2127)                                  \
   VALUE_ENTRY(BMS_CellDelta, "mV", 2109)                                       \
   VALUE_ENTRY(speed, "rpm", 2016)                                              \
   VALUE_ENTRY(Veh_Speed, "kph", 2017)                                          \
@@ -350,7 +350,8 @@
 #define BMSMODES                                                               \
   "0=Off, 1=SimpBMS, 2=TiDaisychainSingle, 3=TiDaisychainDual, 4=LeafBms, "    \
   "5=RenaultKangoo33, 6=BMW_PHEV"
-#define BALSTATES "0=InactiveNotNeeded, 1=Active, 2=NotResting, 3=Inactive, 4=Unknown"
+#define BALSTATES                                                              \
+  "0=InactiveNotNeeded, 1=Active, 2=NotResting, 3=Inactive, 4=Unknown"
 #define ISOPLAUS "0=NotPlausible, 1=Plausible"
 #define QUALFLAG "0=NoStatement, 1=OK, 2=Fault, 3=Invalid"
 #define DCSWSTATE "0=Open, 1=Precharging, 2=Closed, 3=Invalid"

@@ -377,9 +377,12 @@ float ProcessUdc(int motorSpeed) {
     Param::SetFloat(Param::deltaV, deltaVolts1);
     if (Param::GetInt(Param::ShuntType) == 4) // ISA Shunt with udcsw update
     {
-      if (udc2 > Param::GetFloat(Param::udcmin)) // only update UDCsw if UDC2 is above udcmin
+      if (udc2 >
+          Param::GetFloat(
+              Param::udcmin)) // only update UDCsw if UDC2 is above udcmin
       {
-        Param::SetFloat(Param::udcsw,udc2 - 20); // Set udcsw to 20V under battery voltage
+        Param::SetFloat(Param::udcsw,
+                        udc2 - 20); // Set udcsw to 20V under battery voltage
       }
     }
   } else if (Param::GetInt(Param::ShuntType) == 2) // BMS Sbox
@@ -393,9 +396,12 @@ float ProcessUdc(int motorSpeed) {
           ((float)SBOX::Voltage) / 1000; // get battery voltage from sbox sensor
                                          // and post to parameter database
       Param::SetFloat(Param::udc2, udc2);
-      if (udc2 >Param::GetFloat(Param::udcmin)) // only update UDCsw if UDC2 is above udcmin
+      if (udc2 >
+          Param::GetFloat(
+              Param::udcmin)) // only update UDCsw if UDC2 is above udcmin
       {
-        Param::SetFloat(Param::udcsw,udc2 - 20); // Set udcsw to 20V under battery voltage
+        Param::SetFloat(Param::udcsw,
+                        udc2 - 20); // Set udcsw to 20V under battery voltage
       }
     } else {
       Param::SetFloat(Param::udc, 0);
@@ -442,9 +448,11 @@ float ProcessUdc(int motorSpeed) {
     Param::SetFloat(Param::idc, idc);
   } else if (Param::GetInt(Param::ShuntType) == 5) // BMW PHEV SME
   {
-    // BmwPhevBMS::Voltage is pack voltage in dV (0.1V), Amperes in deciAmps (0.1A)
+    // BmwPhevBMS::Voltage is pack voltage in dV (0.1V), Amperes in deciAmps
+    // (0.1A)
     if (Param::GetInt(Param::opmode) != MOD_OFF) {
-      float udc2 = ((float)BmwPhevBMS::Voltage) / 10.0f; // dV → V (pre-contactor)
+      float udc2 =
+          ((float)BmwPhevBMS::Voltage) / 10.0f; // dV → V (pre-contactor)
       Param::SetFloat(Param::udc2, udc2);
       // udc (post-contactor V) must NOT be reported as valid until the SME's
       // internal contactors are confirmed closed.  Before that, report 0V so
@@ -452,7 +460,8 @@ float ProcessUdc(int motorSpeed) {
       float udc = BmwPhevBMS::AreContactorsClosed() ? udc2 : 0.0f;
       Param::SetFloat(Param::udc, udc);
       if (udc2 > Param::GetFloat(Param::udcmin))
-        Param::SetFloat(Param::udcsw, udc2 - 20); // Set UDCsw 20V below battery V
+        Param::SetFloat(Param::udcsw,
+                        udc2 - 20); // Set UDCsw 20V below battery V
     } else {
       Param::SetFloat(Param::udc, 0);
       Param::SetFloat(Param::udc2, 0);
@@ -460,7 +469,8 @@ float ProcessUdc(int motorSpeed) {
     // udc3 = measured post-contactor voltage (UDS 0xDD66). This is the
     // feedback signal that confirms contactor close — watching it next to
     // udc2 on the web UI shows the close happening (and verifies scaling).
-    Param::SetFloat(Param::udc3, ((float)BmwPhevBMS::GetPostContactorVoltage()) / 10.0f);
+    Param::SetFloat(Param::udc3,
+                    ((float)BmwPhevBMS::GetPostContactorVoltage()) / 10.0f);
     float idc = ((float)BmwPhevBMS::Amperes) / 10.0f; // deciAmps → A
     Param::SetFloat(Param::idc, idc);
   }
