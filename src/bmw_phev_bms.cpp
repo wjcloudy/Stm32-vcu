@@ -124,14 +124,15 @@
  *   22 DD C0  Cell temperatures min/max/avg (multi-frame)
  *   31 03 AD 6B  Balancing status (01=active, 03=not active)
  *   19 02 0C  Read DTCs (multi-frame)
- *   22 F1 90  Paired VIN (placeholder - not fully implemented)
+ *   31 03 AD 61  Isolation measurement status (raw byte → BMS_IsoTestStat)
  *
  * ONE-SHOT commands (triggered by user request, silence polls for 1s after):
- *   14 FF FF FF  Clear DTCs
- *   11 01        SME hard reset
- *   31 01 AD 61  Start isolation test
- *   31 01 AD 6B  Start balancing
- *   31 02 AD 6B  Stop balancing
+ *   14 FF FF FF  Clear DTCs (BMS_DTCClear param)
+ *   19 02 0C     Immediate DTC read (BMS_DTCRead param; also in slow poll)
+ *   11 01        SME hard reset (BMS_Reset param, contactors open only)
+ *   31 01 AD 61  Start isolation test (BMS_IsoTest param, contactors open only)
+ *   31 01 AD 6B  Start balancing (BMS_BalancingOn param)
+ *   31 02 AD 6B  Stop balancing (BMS_BalancingOn param)
  *
  * ============================================================================
  * CONTACTOR CLOSE SEQUENCE
@@ -198,8 +199,6 @@
  *   suppressed (wakeInProgress) — mixed-baud frames would cause error storms.
  * - Paired VIN (22 F1 90) and pack info (22 DF 71) are polled but not
  *   fully decoded into params yet.
- * - Isolation test results (31 03 AD 61) are not polled after starting
- *   the test; the result polling loop should be added.
  * - Vehicle frames 0x1A1 (speed) and 0x433 (HV spec) are NOT transmitted
  *   because they require rolling counters that aren't implemented yet.
  *   Sending frozen values risks "signal invalid" DTCs which are worse than
@@ -260,6 +259,7 @@ const uint8_t BmwPhevBMS::UDS_HARD_RESET[4]       = {0x07, 0x02, 0x11, 0x01};
 const uint8_t BmwPhevBMS::UDS_BALANCING_START[8]  = {0x07, 0x04, 0x31, 0x01, 0xAD, 0x6B, 0x00, 0x00};
 const uint8_t BmwPhevBMS::UDS_BALANCING_STOP[8]   = {0x07, 0x04, 0x31, 0x02, 0xAD, 0x6B, 0x00, 0x00};
 const uint8_t BmwPhevBMS::UDS_ISOLATION_TEST[8]   = {0x07, 0x04, 0x31, 0x01, 0xAD, 0x61, 0x00, 0x00};
+const uint8_t BmwPhevBMS::UDS_ISOLATION_STATUS[8] = {0x07, 0x04, 0x31, 0x03, 0xAD, 0x61, 0x00, 0x00};
 const uint8_t BmwPhevBMS::UDS_POST_VOLTAGE[5]     = {0x07, 0x03, 0x22, 0xDD, 0x66};
 
 /*===========================================================================
@@ -273,7 +273,7 @@ const int BmwPhevBMS::numFastReqs = 4;
 const uint8_t* BmwPhevBMS::slowReqs[9] = {
     UDS_ISO_READING1, UDS_ISO_READING2, UDS_CURRENT_LIMITS,
     UDS_SOH, UDS_CELL_VOLTAGES, UDS_CELL_TEMP,
-    UDS_BALANCING_STATUS, UDS_READ_DTC, UDS_READ_DTC  // Paired VIN skipped, DTC doubled for placeholder
+    UDS_BALANCING_STATUS, UDS_READ_DTC, UDS_ISOLATION_STATUS
 };
 const int BmwPhevBMS::numSlowReqs = 9;
 
@@ -341,8 +341,30 @@ uint16_t BmwPhevBMS::minDesignVoltage_dV = 3000;
 int16_t  BmwPhevBMS::maxDischargeAmps = 0;
 int16_t  BmwPhevBMS::maxChargeAmps = 0;
 uint16_t BmwPhevBMS::isoExtKOhm = 0;
+uint16_t BmwPhevBMS::isoTrgKOhm = 0;
 uint16_t BmwPhevBMS::isoIntKOhm = 0;
+uint8_t  BmwPhevBMS::isoExtPlausible = 0;
+uint8_t  BmwPhevBMS::isoTrgPlausible = 0;
+uint8_t  BmwPhevBMS::isoIntPlausible = 0;
 uint16_t BmwPhevBMS::isoRawKOhm = 0;
+uint8_t  BmwPhevBMS::isoQuality = 0;
+uint8_t  BmwPhevBMS::isoTestStatus = 0;
+uint8_t  BmwPhevBMS::isoTestFault = 0xFF;
+uint8_t  BmwPhevBMS::isoStatusBoostSecs = 0;
+uint8_t  BmwPhevBMS::isoErrExt = 0;
+uint8_t  BmwPhevBMS::isoErrInt = 0;
+uint8_t  BmwPhevBMS::isoWarn = 0;
+uint8_t  BmwPhevBMS::interlockStat = 0;
+uint8_t  BmwPhevBMS::prechargeStat = 0;
+uint8_t  BmwPhevBMS::dcswStat = 0;
+uint8_t  BmwPhevBMS::emgModeStat = 0;
+uint8_t  BmwPhevBMS::svcReqStat = 0;
+uint8_t  BmwPhevBMS::weldStat = 0;
+uint8_t  BmwPhevBMS::coldValveStat = 0;
+uint16_t BmwPhevBMS::maxChargeVoltage_dV = 0;
+uint16_t BmwPhevBMS::minDischargeVoltage_dV = 0;
+uint32_t BmwPhevBMS::dtcCodes[5] = {0};
+uint8_t  BmwPhevBMS::dtcCount = 0;
 uint32_t BmwPhevBMS::availChargePowerShort_W = 0;
 uint32_t BmwPhevBMS::availDischargePowerShort_W = 0;
 uint32_t BmwPhevBMS::availChargePowerLong_W = 0;
@@ -397,13 +419,31 @@ void BmwPhevBMS::OnUdsResponse(uint8_t moduleID, const uint8_t* data,
                // ext/int readings of 0xDD6A so BMS_IsolationExt doesn't flicker
                // between two different measurements
         if (len >= 5)
-            isoRawKOhm = (data[3] << 8) | data[4];
+            isoRawKOhm = (data[3] << 8) | data[4];   // STAT_R_ISO_ROH_01_WERT
+        if (len >= 6)
+            isoQuality = data[5];                    // STAT_R_ISO_ROH_QAL_01_INFO, 0-21 higher = better
         break;
 
-    case 0x66: // Post-contactor voltage (62 DD 66), raw in dV
+    case 0x61: // Isolation measurement routine status (71 03 AD 61 ss ff)
+        // ss = STAT_MESSUNG_ERFOLGREICH: 0=not run/not successful,
+        //      1=successful, 2=running
+        // ff = STAT_MESSUNG_ISOLATIONSFEHLER: 0=no fault, 1=fault,
+        //      0xFF=undefined (no completed measurement)
+        // Observed: 00 FF (idle), 02 00 (running), 01 00 (done, no fault)
+        if (len >= 5 && data[0] == 0x71 && data[1] == 0x03 &&
+            data[2] == 0xAD && data[3] == 0x61)
+        {
+            isoTestStatus = data[4];
+            if (len >= 6)
+                isoTestFault = data[5];
+        }
+        break;
+
+    case 0x66: // Post-contactor voltage (62 DD 66), raw in cV (0.01 V/bit —
+               // bench-verified: udc3 read 10x high when treated as dV)
         if (len >= 5)
         {
-            postContactorVoltage_dV = (data[3] << 8) | data[4];
+            postContactorVoltage_dV = ((data[3] << 8) | data[4]) / 10;
 
             // Close confirmation: the post-contactor rail tracking pack
             // voltage within 10% proves the contactors physically closed.
@@ -423,9 +463,34 @@ void BmwPhevBMS::OnUdsResponse(uint8_t moduleID, const uint8_t* data,
             balancingStatus = data[4];
         break;
 
-    case 0x02: // DTC response (SF 59 02 FF or MF 59 02 ...)
+    case 0x02: // DTC response (SF 59 02 FF = none stored, or MF 59 02 FF + records)
+        // Records of 4 bytes after the availability mask: 3-byte DTC code +
+        // 1 status byte. Keep the LAST five valid codes (0x000000 or status
+        // 0x00 records are padding/cleared slots).
         if (len >= 2 && data[0] == 0x59 && data[1] == 0x02)
+        {
+            uint8_t total = 0, stored = 0;
+            for (uint16_t off = 3; off + 3 < len; off += 4)
+            {
+                uint32_t code = ((uint32_t)data[off] << 16) |
+                                ((uint32_t)data[off + 1] << 8) | data[off + 2];
+                uint8_t status = data[off + 3];
+                if (code == 0 || status == 0) continue;
+                total++;
+                if (stored < 5)
+                {
+                    dtcCodes[stored++] = code;
+                }
+                else
+                {
+                    for (uint8_t i = 0; i < 4; i++) dtcCodes[i] = dtcCodes[i + 1];
+                    dtcCodes[4] = code;
+                }
+            }
+            for (uint8_t i = stored; i < 5; i++) dtcCodes[i] = 0;
+            dtcCount = total;
             timeoutCounter = Param::GetInt(Param::BMS_Timeout) * 10;
+        }
         break;
 
     // ---- Multi-frame responses ----
@@ -462,11 +527,22 @@ void BmwPhevBMS::OnUdsResponse(uint8_t moduleID, const uint8_t* data,
         }
         break;
 
-    case 0x6A: // Isolation reading 1
+    case 0x6A: // Isolation readings (62 DD 6A, multi-frame)
+        // bytes3-4: external kOhm (STAT_ISOWIDERSTAND_EXT_STD_WERT)
+        // bytes5-6: trigger kOhm   bytes7-8: internal kOhm
+        // byte9/10/11: ext/trigger/int plausibility (1 = plausible)
+        // 2000 kOhm = measurement ceiling, i.e. "no fault detected"
         if (len >= 9)
         {
             isoExtKOhm = (data[3] << 8) | data[4];
+            isoTrgKOhm = (data[5] << 8) | data[6];
             isoIntKOhm = (data[7] << 8) | data[8];
+        }
+        if (len >= 12)
+        {
+            isoExtPlausible = data[9];
+            isoTrgPlausible = data[10];
+            isoIntPlausible = data[11];
         }
         break;
 
@@ -571,9 +647,9 @@ void BmwPhevBMS::DecodeCAN(int id, uint8_t* data)
         break;
 
     case 0x2F5: // [100ms] Charge/Discharge Limitations
-        // maxChargeVoltage = (data[1]<<8)|data[0]  (not stored currently)
+        maxChargeVoltage_dV = (data[1] << 8) | data[0];
         maxChargeAmps = (int16_t)((((data[3] << 8) | data[2]) - 8192) / 10);
-        // minDischargeVoltage = (data[5]<<8)|data[4] (not stored currently)
+        minDischargeVoltage_dV = (data[5] << 8) | data[4];
         maxDischargeAmps = (int16_t)((((data[7] << 8) | data[6]) - 8192) / 10);
         break;
 
@@ -602,6 +678,27 @@ void BmwPhevBMS::DecodeCAN(int id, uint8_t* data)
         break;
 
     case 0x1FA: // [1s] Status / temps
+        // Isolation fault flags (2-bit qualifiers: 0=no statement,
+        // 1=not active/OK, 2=active/fault, 3=signal invalid)
+        isoErrExt = data[0] & 0x03;         // isolation error external Bordnetz
+        isoErrInt = (data[0] & 0x0C) >> 2;  // isolation error internal Bordnetz
+        isoWarn   = (data[2] & 0xC0) >> 6;  // isolation warning
+
+        // Contactor / safety status fields
+        interlockStat = data[1] & 0x03;        // HV interlock (2 = not seated)
+        prechargeStat = (data[1] & 0x0C) >> 2; // 2 = precharge blocked
+        dcswStat      = (data[1] & 0x30) >> 4; // 0=open 1=precharging 2=closed 3=invalid
+        emgModeStat   = (data[1] & 0xC0) >> 6;
+        svcReqStat    = data[2] & 0x03;
+        weldStat      = (data[2] & 0x30) >> 4; // 1/2 = welded contactor(s)
+        coldValveStat = data[3] & 0x0F;
+
+        // Close confirmation: the SME reporting its disconnecting switch
+        // engaged is authoritative — complements the post-contactor voltage
+        // and current-flow checks.
+        if (contactorCloseReq && dcswStat == 2)
+            contactorsConfirmedClosed = true;
+
         if (data[6] > 0 && data[6] < 255)
             minTemperature_C = (int16_t)data[6] - 50;
         if (data[7] > 0 && data[7] < 255)
@@ -764,6 +861,79 @@ void BmwPhevBMS::Task100Ms()
             udsOneShotSilence = 10; // 1s silence
         }
 
+        // ---- User-requested isolation test (BMS_IsoTest param, momentary) ----
+        // Starts routine 0xAD61 in the SME; progress shows up in
+        // BMS_IsoTestStat via the slow-poll status request (31 03 AD 61).
+        // Only allowed with contactors open — the internal measurement is
+        // specified as "measured on request with contactors open" and we
+        // don't want a test perturbing a live HV bus. The param auto-resets
+        // so it behaves like a momentary button in the web UI.
+        if (Param::GetInt(Param::BMS_IsoTest) != 0)
+        {
+            if (contactorCloseReq)
+            {
+                Param::SetInt(Param::BMS_IsoTest, 0); // refuse while closed
+            }
+            else if (!udsOneShotPending)
+            {
+                uds.Abort();
+                SendCAN(bmsCan, 0x6F1, UDS_ISOLATION_TEST, 8);
+                udsOneShotPending = true;
+                udsOneShotSilence = 10; // 1s silence
+                isoStatusBoostSecs = 30; // poll status at 1Hz for fast feedback
+                Param::SetInt(Param::BMS_IsoTest, 0); // momentary — auto-reset
+            }
+            // else: wait for the current silence window, then send
+        }
+
+        // ---- User-requested immediate DTC read (BMS_DTCRead, momentary) ----
+        // DTCs are also read in the slow-poll rotation (~every 9s); this
+        // forces one now. Results land in BMS_DTCCount / BMS_DTC1..5.
+        if (Param::GetInt(Param::BMS_DTCRead) != 0 && !udsOneShotPending)
+        {
+            uds.Abort();
+            SendCAN(bmsCan, 0x6F1, UDS_READ_DTC, 8);
+            udsOneShotPending = true;
+            udsOneShotSilence = 10; // 1s silence
+            Param::SetInt(Param::BMS_DTCRead, 0); // momentary — auto-reset
+        }
+
+        // ---- User-requested DTC clear (BMS_DTCClear, momentary) ----
+        if (Param::GetInt(Param::BMS_DTCClear) != 0 && !udsOneShotPending)
+        {
+            uds.Abort();
+            SendCAN(bmsCan, 0x6F1, UDS_CLEAR_DTC, 8);
+            // Optimistically clear the displayed codes; the next slow-poll
+            // read repopulates anything the SME refused to erase.
+            dtcCount = 0;
+            for (uint8_t i = 0; i < 5; i++) dtcCodes[i] = 0;
+            udsOneShotPending = true;
+            udsOneShotSilence = 10; // 1s silence
+            Param::SetInt(Param::BMS_DTCClear, 0); // momentary — auto-reset
+        }
+
+        // ---- User-requested SME hard reset (BMS_Reset, momentary) ----
+        // UDS ECU reset (11 01): reboots the SME, clearing latched states
+        // that survive a DTC erase (e.g. a standing service request).
+        // Contactors must be open — resetting mid-operation would drop
+        // them uncontrolled. The SME goes silent for a few seconds while
+        // rebooting; expect a BMS timeout and automatic re-wake.
+        if (Param::GetInt(Param::BMS_Reset) != 0)
+        {
+            if (contactorCloseReq)
+            {
+                Param::SetInt(Param::BMS_Reset, 0); // refuse while closed
+            }
+            else if (!udsOneShotPending)
+            {
+                uds.Abort();
+                SendCAN(bmsCan, 0x6F1, UDS_HARD_RESET, 4);
+                udsOneShotPending = true;
+                udsOneShotSilence = 30; // 3s silence while the SME reboots
+                Param::SetInt(Param::BMS_Reset, 0); // momentary — auto-reset
+            }
+        }
+
         // ---- 0x12F Terminal Status (100ms) ----
         {
             static uint8_t alive100 = 0;
@@ -917,12 +1087,24 @@ void BmwPhevBMS::Task100Ms()
             // UDS Slow Poll
             if (!udsOneShotPending && bmsCan)
             {
-                uint8_t dlc = (slowReqs[slowPollIndex] == UDS_BALANCING_STATUS ||
-                               slowReqs[slowPollIndex] == UDS_READ_DTC) ? 8 : 5;
-                if (uds.SendRequest(slowReqs[slowPollIndex], dlc))
+                // For ~30s after an isolation test is started, poll its
+                // status every second instead of the rotation, so
+                // Running → Successful shows up promptly in the UI.
+                if (isoStatusBoostSecs > 0)
                 {
-                    slowPollIndex++;
-                    if (slowPollIndex >= numSlowReqs) slowPollIndex = 0;
+                    if (uds.SendRequest(UDS_ISOLATION_STATUS, 8))
+                        isoStatusBoostSecs--;
+                }
+                else
+                {
+                    uint8_t dlc = (slowReqs[slowPollIndex] == UDS_BALANCING_STATUS ||
+                                   slowReqs[slowPollIndex] == UDS_READ_DTC ||
+                                   slowReqs[slowPollIndex] == UDS_ISOLATION_STATUS) ? 8 : 5;
+                    if (uds.SendRequest(slowReqs[slowPollIndex], dlc))
+                    {
+                        slowPollIndex++;
+                        if (slowPollIndex >= numSlowReqs) slowPollIndex = 0;
+                    }
                 }
             }
 
@@ -970,9 +1152,16 @@ void BmwPhevBMS::Task100Ms()
     cellDataStale = (cellStaleTicks >= 36000) && // 36000 × 100ms = 60 min
                     (packCurrent_dA > 50 || packCurrent_dA < -50);
 
-    // CAN silence — any close confirmation is no longer trustworthy
+    // CAN silence — any close confirmation is no longer trustworthy, and
+    // the SME has evidently gone back to sleep (0x112 normally arrives every
+    // 20ms): clear batteryAwake so wake attempts (and the TX silence they
+    // need) restart. Without this, batteryAwake latched true forever after
+    // first contact and a mid-session sleep could never be recovered.
     if (timeoutCounter == 0)
+    {
         contactorsConfirmedClosed = false;
+        batteryAwake = false;
+    }
 
     // ---- Update BMS Params (every call) ----
     if (timeoutCounter > 0)
@@ -1013,15 +1202,69 @@ void BmwPhevBMS::Task100Ms()
         if (availChargePowerShort_W > 0)
             Param::SetFloat(Param::BMS_MaxCharge, (float)availChargePowerShort_W);
 
-        // Isolation resistance (kOhm) — internal and external from UDS 0xDD6A
+        // Isolation resistance (kOhm) — ext/int/trigger from UDS 0xDD6A.
+        // 2000 = measurement ceiling (no fault). Plausibility flags qualify
+        // each reading (1 = plausible).
         if (isoExtKOhm > 0)
             Param::SetFloat(Param::BMS_IsolationExt, (float)isoExtKOhm);
         if (isoIntKOhm > 0)
             Param::SetFloat(Param::BMS_IsolationInt, (float)isoIntKOhm);
+        if (isoTrgKOhm > 0)
+            Param::SetFloat(Param::BMS_IsolationTrg, (float)isoTrgKOhm);
+        Param::SetInt(Param::BMS_IsoPlausExt, isoExtPlausible);
+        Param::SetInt(Param::BMS_IsoPlausInt, isoIntPlausible);
+        Param::SetInt(Param::BMS_IsoPlausTrg, isoTrgPlausible);
+
+        // Raw isolation reading + measurement quality (UDS 0xD6D9)
+        if (isoRawKOhm > 0)
+            Param::SetFloat(Param::BMS_IsolationRaw, (float)isoRawKOhm);
+        Param::SetInt(Param::BMS_IsoQuality, isoQuality);
+
+        // Isolation test routine status + fault verdict (71 03 AD 61)
+        Param::SetInt(Param::BMS_IsoTestStat, isoTestStatus);
+        Param::SetInt(Param::BMS_IsoTestFault, isoTestFault);
+
+        // Live isolation fault flags from 0x1FA broadcast
+        Param::SetInt(Param::BMS_IsoErrExt, isoErrExt);
+        Param::SetInt(Param::BMS_IsoErrInt, isoErrInt);
+        Param::SetInt(Param::BMS_IsoWarn, isoWarn);
+
+        // SOH from UDS 0xDD7B (stored as % * 100)
+        if (minSohState > 0 && minSohState <= 10000)
+            Param::SetFloat(Param::BMS_SOH, minSohState / 100.0f);
+
+        // DTCs (last 5 codes, raw 24-bit — convert to hex to look up,
+        // e.g. 13288469 = 0xCAD415)
+        Param::SetInt(Param::BMS_DTCCount, dtcCount);
+        Param::SetInt(Param::BMS_DTC1, dtcCodes[0]);
+        Param::SetInt(Param::BMS_DTC2, dtcCodes[1]);
+        Param::SetInt(Param::BMS_DTC3, dtcCodes[2]);
+        Param::SetInt(Param::BMS_DTC4, dtcCodes[3]);
+        Param::SetInt(Param::BMS_DTC5, dtcCodes[4]);
+
+        // Contactor / safety status from 0x1FA broadcast
+        Param::SetInt(Param::BMS_Interlock, interlockStat);
+        Param::SetInt(Param::BMS_PrechgState, prechargeStat);
+        Param::SetInt(Param::BMS_Contactors, dcswStat);
+        Param::SetInt(Param::BMS_EmgMode, emgModeStat);
+        Param::SetInt(Param::BMS_SvcReq, svcReqStat);
+        Param::SetInt(Param::BMS_WeldCheck, weldStat);
+        Param::SetInt(Param::BMS_ColdValve, coldValveStat);
+
+        // Charge/discharge voltage limits from 0x2F5 (dV → V).
+        // NOTE: scale assumed 0.1V/bit like 0x112 — verify against the
+        // UDS 0xDD7E design limits on the bench.
+        if (maxChargeVoltage_dV > 0)
+            Param::SetFloat(Param::BMS_ChgVLim, maxChargeVoltage_dV / 10.0f);
+        if (minDischargeVoltage_dV > 0)
+            Param::SetFloat(Param::BMS_DisVLim, minDischargeVoltage_dV / 10.0f);
 
         // Balancing status (UDS 0xAD6B: 0=inactive not needed, 1=active, 2=not resting,
         // 3=inactive, 4=unknown/qualifier invalid)
         Param::SetInt(Param::BMS_Balancing, (int)balancingStatus);
+
+        // Pack current from 0x112 (dA → A, negative = discharge)
+        Param::SetFloat(Param::BMS_Current, packCurrent_dA / 10.0f);
 
         // Pack power (V × A, W → kW)
         float packPower_kW = (packVoltage_dV / 10.0f) * (packCurrent_dA / 10.0f) / 1000.0f;

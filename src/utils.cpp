@@ -457,7 +457,10 @@ float ProcessUdc(int motorSpeed) {
       Param::SetFloat(Param::udc, 0);
       Param::SetFloat(Param::udc2, 0);
     }
-    Param::SetFloat(Param::udc3, 0);
+    // udc3 = measured post-contactor voltage (UDS 0xDD66). This is the
+    // feedback signal that confirms contactor close — watching it next to
+    // udc2 on the web UI shows the close happening (and verifies scaling).
+    Param::SetFloat(Param::udc3, ((float)BmwPhevBMS::GetPostContactorVoltage()) / 10.0f);
     float idc = ((float)BmwPhevBMS::Amperes) / 10.0f; // deciAmps → A
     Param::SetFloat(Param::idc, idc);
   }

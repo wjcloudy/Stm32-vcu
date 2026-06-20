@@ -80,6 +80,11 @@ public:
    // not report voltage as valid until the SME has actually closed.
    static bool AreContactorsClosed();
 
+   // Post-contactor voltage measured via UDS 0xDD66 (dV). Exposed as udc3
+   // by ProcessUdc() so the close-confirmation feedback is visible on the
+   // web UI (compare against udc2 = pack voltage).
+   static uint16_t GetPostContactorVoltage() { return postContactorVoltage_dV; }
+
 private:
    // ---- CRC ----
    static uint8_t Crc8SAEJ1850(const uint8_t* data, uint8_t len, uint8_t init);
@@ -162,9 +167,31 @@ private:
    static uint16_t minDesignVoltage_dV;  // from UDS 0xDD7E
    static int16_t  maxDischargeAmps;     // from 0x2F5
    static int16_t  maxChargeAmps;        // from 0x2F5
-   static uint16_t isoExtKOhm;           // from UDS 0xDD6A
-   static uint16_t isoIntKOhm;           // from UDS 0xDD6A
+   static uint16_t isoExtKOhm;           // from UDS 0xDD6A bytes 3-4
+   static uint16_t isoTrgKOhm;           // from UDS 0xDD6A bytes 5-6 (trigger threshold reading)
+   static uint16_t isoIntKOhm;           // from UDS 0xDD6A bytes 7-8
+   static uint8_t  isoExtPlausible;      // from UDS 0xDD6A byte 9  (1 = plausible)
+   static uint8_t  isoTrgPlausible;      // from UDS 0xDD6A byte 10 (1 = plausible)
+   static uint8_t  isoIntPlausible;      // from UDS 0xDD6A byte 11 (1 = plausible)
    static uint16_t isoRawKOhm;           // from UDS 0xD6D9 (single-frame raw iso)
+   static uint8_t  isoQuality;           // from UDS 0xD6D9 (quality 0-21, higher = better)
+   static uint8_t  isoTestStatus;        // 71 03 AD 61 byte5: 0=not run, 1=successful, 2=running
+   static uint8_t  isoTestFault;         // 71 03 AD 61 byte6: 0=no fault, 1=fault, 0xFF=undefined
+   static uint8_t  isoStatusBoostSecs;   // 1Hz status polling countdown after test start
+   static uint8_t  isoErrExt;            // from 0x1FA byte0 bits0-1 (qualifier: 2 = fault)
+   static uint8_t  isoErrInt;            // from 0x1FA byte0 bits2-3 (qualifier: 2 = fault)
+   static uint8_t  isoWarn;              // from 0x1FA byte2 bits6-7 (qualifier: 2 = fault)
+   static uint8_t  interlockStat;        // from 0x1FA byte1 bits0-1 (qualifier: 2 = not seated)
+   static uint8_t  prechargeStat;        // from 0x1FA byte1 bits2-3 (2 = precharge blocked)
+   static uint8_t  dcswStat;             // from 0x1FA byte1 bits4-5 (0=open 1=precharging 2=closed)
+   static uint8_t  emgModeStat;          // from 0x1FA byte1 bits6-7 (qualifier: 2 = emergency)
+   static uint8_t  svcReqStat;           // from 0x1FA byte2 bits0-1 (qualifier: 2 = service required)
+   static uint8_t  weldStat;             // from 0x1FA byte2 bits4-5 (1/2 = welded contactors)
+   static uint8_t  coldValveStat;        // from 0x1FA byte3 bits0-3 (0 = OK)
+   static uint16_t maxChargeVoltage_dV;  // from 0x2F5 bytes0-1
+   static uint16_t minDischargeVoltage_dV; // from 0x2F5 bytes4-5
+   static uint32_t dtcCodes[5];          // last 5 DTCs from 19 02 (3-byte codes)
+   static uint8_t  dtcCount;             // total valid DTCs in last read
    static uint32_t availChargePowerShort_W;   // from 0x40D
    static uint32_t availDischargePowerShort_W;
    static uint32_t availChargePowerLong_W;    // from 0x40D
@@ -191,6 +218,7 @@ private:
    static const uint8_t UDS_BALANCING_START[8];
    static const uint8_t UDS_BALANCING_STOP[8];
    static const uint8_t UDS_ISOLATION_TEST[8];
+   static const uint8_t UDS_ISOLATION_STATUS[8];
    static const uint8_t UDS_POST_VOLTAGE[5];
 
    // ---- UDS poll arrays ----
