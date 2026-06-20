@@ -1749,7 +1749,6 @@ int main(void) {
   c.AddCallback(&cb);
   c2.AddCallback(&cb);
   TerminalCommands::SetCanMap(&cm);
-  SdoCommands::SetCanMap(&cm);
   canMap = &cm;
   canSdo = &sdo;
 
@@ -1789,15 +1788,11 @@ int main(void) {
 
   while (1) {
     char c = 0;
-    CanSdo::SdoFrame *sdoFrame = sdo.GetPendingUserspaceSdo();
     t.Run();
+    // SDO requests are serviced inside CanSdo (from CanSdo::HandleRx); the loop
+    // only drives the terminal and the JSON param dump.
     if (sdo.GetPrintRequest() == PRINT_JSON) {
       TerminalCommands::PrintParamsJson(&sdo, &c);
-    }
-    if (0 != sdoFrame) {
-      SdoCommands::ProcessStandardCommands(sdoFrame);
-
-      sdo.SendSdoReply(sdoFrame);
     }
   }
 
