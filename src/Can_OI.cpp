@@ -267,7 +267,7 @@ void Can_OI::ConfigCan() {
     }
   } else if (ConfigStep == 2) // Config TX CAN frames
   {
-    if (xarr < 6) {
+    if (xarr < 5) {
       if (IntStep == 0) {
         if (ActionSuccess == true) {
           IntStep = 1;

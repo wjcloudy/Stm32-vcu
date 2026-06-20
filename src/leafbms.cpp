@@ -49,19 +49,27 @@ void LeafBMS::DecodeCAN(int id, uint8_t *data) {
       break;
     }
     float cur = uint16_t(bytes[0] << 3) + uint16_t(bytes[1] >> 5);
-    if (cur > 1023)cur -= 2047; // check if negative
+    if (cur > 1023) {
+      cur -= 2047; // check if negative
+    }
     uint16_t udc = uint16_t(bytes[2] << 2) + uint16_t(bytes[3] >> 6);
     // bool interlock = (bytes[3] & (1 << 3)) >> 3;
     // bool full = (bytes[3] & (1 << 4)) >> 4;
-
-    if (Param::GetInt(Param::ShuntType)==0) // Only populate if no shunt is used
-    {
+    
+    if (Param::GetInt(Param::ShuntType) == 0) { 
+      // Only populate if no shunt is used
       float BattCur = cur / 2;
       float BattVoltage = udc / 2;
       Param::SetFloat(Param::idc, BattCur);
-      if (BattVoltage < 450)Param::SetFloat(Param::udc2, BattVoltage);
-      if (BattVoltage > 200)Param::SetFloat(Param::udcsw,BattVoltage-20); // Set for precharging based on actual voltage
-      float kw =(BattVoltage * BattCur) /1000; // calculate power and post to parameter database
+      if (BattVoltage < 450) {
+        Param::SetFloat(Param::udc2, BattVoltage);
+      }
+      if (BattVoltage > 200) {
+        Param::SetFloat(Param::udcsw, BattVoltage - 20);
+        // Set for precharging based on actual voltage
+      }
+      float kw = (BattVoltage * BattCur) / 1000;
+      // calculate power and post to parameter database
       Param::SetFloat(Param::power, kw);
     }
     break;

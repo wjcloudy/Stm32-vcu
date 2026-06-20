@@ -22,6 +22,8 @@ V2.15a now available : https://www.youtube.com/watch?v=iwB3wxCEFo0
 
 V2.20A now available : https://www.youtube.com/watch?v=wjlucUWX_lc
 
+V2.40A now available : https://vimeo.com/1201141543?fl=ip&fe=ec
+
 # Supported components
 
 - Nissan Leaf Gen1/2/3 inverter via CAN

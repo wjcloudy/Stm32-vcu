@@ -115,7 +115,8 @@ void NissLeafMng::Task10Ms(int16_t final_torque_request) {
     // 2016: 6E
 
     // Usually 07, but can have values between 07...70 (gen1)
-    bytes[1] = 0x70;//any val above 0x70 will disable regen on Gen1 Em61 leaf systems. Later systems allow up to 0xf7
+    bytes[1] = 0x70; // any val above 0x70 will disable regen on Gen1 Em61 leaf
+                     // systems. Later systems allow up to 0xf7
 
     // 2016: 6E
 
@@ -385,8 +386,8 @@ void NissLeafMng::Task100Ms() {
     if (Param::GetInt(Param::CanAct) ==
         1) // External CAN wake trigger (currently only PDM)
     {
-    //  SendCan = true;
-     // SleepCount = 100; // 10s shut down counter reset
+      // SendCan = true;
+      // SleepCount = 100; // 10s shut down counter reset
     }
     if (opmode == MOD_CHARGE ||
         opmode == MOD_RUN) // If we get put into RUN or Charge mode start CAN
